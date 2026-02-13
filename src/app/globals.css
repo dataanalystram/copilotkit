@@ -1,26 +1,691 @@
 @import "tailwindcss";
 
+/* ── Apple Premium Design Tokens ─────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Apple Dark Mode Palette */
+  --bg-primary: #000000;
+  /* Pure black background */
+  --bg-secondary: #1c1c1e;
+  /* Secondary grouped background */
+  --bg-card: rgba(28, 28, 30, 0.65);
+  /* Glass card */
+  --bg-glass: rgba(30, 30, 30, 0.4);
+  --bg-glass-hover: rgba(44, 44, 46, 0.5);
+  --bg-elevated: #2c2c2e;
+  /* Tertiary background */
+
+  --text-primary: #ffffff;
+  --text-secondary: rgba(235, 235, 245, 0.6);
+  --text-muted: rgba(235, 235, 245, 0.3);
+  --text-glow: rgba(255, 255, 255, 0.2);
+
+  --border-default: rgba(84, 84, 88, 0.35);
+  /* Subtle separator */
+  --border-light: rgba(84, 84, 88, 0.2);
+  --border-focus: #0a84ff;
+
+  /* Apple System Colors */
+  --accent-primary: #0a84ff;
+  /* System Blue */
+  --accent-secondary: #5e5ce6;
+  /* System Indigo */
+  --accent-cyan: #64d2ff;
+  /* System Cyan */
+  --accent-pink: #bf5af2;
+  /* System Purple */
+
+  --success: #30d158;
+  /* System Green */
+  --warning: #ff9f0a;
+  /* System Orange */
+  --danger: #ff453a;
+  /* System Red */
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+
+  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+  /* Fainter border */
+  --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --backdrop-blur: blur(20px);
+  --saturate: saturate(180%);
+
+  /* Apple Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Global Reset & Base ────────────────────────────────────────── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow: hidden;
+  /* App-like feel */
+  font-size: 14px;
+  /* Slightly smaller, more refined */
+  line-height: 1.4;
+}
+
+/* ── Pipeline Container ──────────────────────────────────────────── */
+.pipeline-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 20px;
+  gap: 16px;
+  overflow: hidden;
+  position: relative;
+  /* Subtle mesh gradient for depth, very faint */
+  background: radial-gradient(circle at 50% -20%, rgba(10, 132, 255, 0.08), transparent 70%);
+}
+
+/* ── Header ──────────────────────────────────────────────────────── */
+.pipeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: rgba(28, 28, 30, 0.5);
+  /* Apple glass material */
+  border-radius: var(--radius-lg);
+  border: 0.5px solid var(--border-light);
+  backdrop-filter: var(--backdrop-blur) var(--saturate);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -0.01em;
+}
+
+.title-icon {
+  font-size: 1.2rem;
+}
+
+.app-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 400;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.08);
+  /* Pill style */
+  border-radius: 100px;
+}
+
+.header-stats {
+  display: flex;
+  gap: 24px;
+}
+
+.header-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.header-stat-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  /* Regular weight, not bold */
+  color: var(--text-primary);
+  font-feature-settings: "tnum";
+  /* Monospaced numbers */
+}
+
+.header-stat-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* ── Pipeline Board (Fit to Screen) ──────────────────────────────── */
+.pipeline-board {
+  display: grid;
+  /* Use minmax to allow shrinking but prevent collapse */
+  grid-template-columns: repeat(6, minmax(160px, 1fr));
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  /* Important for grid overflow */
+  padding-bottom: 4px;
+  /* Ensure it fits nicely */
+  width: 100%;
+}
+
+.pipeline-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  /* Allow flex shrinking */
+  height: 100%;
+  background: rgba(28, 28, 30, 0.2);
+  /* Very subtle column bg */
+  border-radius: var(--radius-md);
+  padding: 8px;
+  /* Internal padding */
+}
+
+.column-header {
+  padding: 10px 12px;
+  /* Removed strong glass bg, made it cleaner */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.column-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.column-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  /* Text truncation */
+}
+
+.column-emoji {
+  font-size: 0.9rem;
+}
+
+.column-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.column-count {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: rgba(118, 118, 128, 0.24);
+  padding: 2px 8px;
+  border-radius: 100px;
+}
+
+.column-bar {
+  height: 2px;
+  /* Thinner apple-style bar */
+  border-radius: 2px;
+  width: 100%;
+  opacity: 0.8;
+}
+
+.column-value {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-top: 4px;
+  font-feature-settings: "tnum";
+}
+
+.column-deals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  overflow-y: auto;
+  /* Vertical scroll only */
+  padding-right: 2px;
+}
+
+/* Apple-style Overlay Scrollbars */
+.column-deals::-webkit-scrollbar {
+  width: 6px;
+  background: transparent;
+}
+
+.column-deals::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+.column-deals::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ── Deal Card ───────────────────────────────────────────────────── */
+.deal-card {
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  /* Subtle border, no glow unless focused */
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  /* Dark mode separator border */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  cursor: default;
+  transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+  position: relative;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.deal-card:hover {
+  background: var(--bg-glass-hover);
+  transform: translateY(-2px);
+  /* Slight lift */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.deal-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
+  gap: 8px;
+}
+
+.deal-company {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  /* Apple Blue */
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.deal-value {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-feature-settings: "tnum";
+}
+
+.deal-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  /* Medium weight */
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+.deal-contact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.deal-contact svg {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.deal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+/* Clean pill badge */
+.deal-stage-badge {
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none !important;
+  /* Override potential inline styles */
+  color: var(--text-secondary) !important;
+  /* Force neutral unless active */
+}
+
+.deal-date {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+/* ── Empty Column ────────────────────────────────────────────────── */
+.empty-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 20px;
+  color: var(--text-muted);
+  gap: 8px;
+}
+
+.empty-icon {
+  font-size: 1.5rem;
+  opacity: 0.3;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────── */
+.pipeline-footer {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding-top: 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.footer-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.footer-link:hover {
+  color: var(--text-primary);
+}
+
+/* ── Copilot Sidebar & Widgets ───────────────────────────────────── */
+/* Force the sidebar to look native */
+.copilotKitSidebar {
+  --copilot-kit-primary-color: #0a84ff !important;
+  --copilot-kit-background-color: rgba(28, 28, 30, 0.85) !important;
+  --copilot-kit-text-color: #ffffff !important;
+  --copilot-kit-secondary-text-color: rgba(235, 235, 245, 0.6) !important;
+  --copilot-kit-separator-color: rgba(84, 84, 88, 0.3) !important;
+  backdrop-filter: blur(25px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(25px) saturate(180%) !important;
+  border-left: 0.5px solid rgba(84, 84, 88, 0.45) !important;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Widget Styles for Chat */
+.deal-preview-widget,
+.pipeline-summary-widget,
+.hitl-confirm-widget {
+  background: #1c1c1e !important;
+  border: 0.5px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: var(--radius-md) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+.hitl-confirm-widget {
+  background: rgba(28, 28, 30, 0.95) !important;
+}
+
+/* ── Chat Widget Internals ───────────────────────────────────────── */
+
+/* Pipeline Summary */
+.summary-header h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #fff;
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.stat-card.highlight {
+  background: rgba(10, 132, 255, 0.1);
+  border-color: rgba(10, 132, 255, 0.2);
+}
+
+.stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  font-feature-settings: "tnum";
+}
+
+.stat-card.highlight .stat-value {
+  color: var(--accent-primary);
+}
+
+.stat-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.stage-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stage-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.stage-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.stage-row-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stage-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.stage-name {
+  font-size: 0.75rem;
+  color: var(--text-primary);
+}
+
+.stage-row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stage-count {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.stage-value {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  width: 50px;
+  text-align: right;
+  font-feature-settings: "tnum";
+}
+
+/* Deal Preview */
+.deal-preview-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  padding: 12px;
+}
+
+.loading-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.deal-preview-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  background: rgba(10, 132, 255, 0.15);
+  color: var(--accent-primary);
+  border-radius: 100px;
+  margin-bottom: 8px;
+}
+
+.deal-preview-body h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #fff;
+}
+
+.deal-preview-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.detail-label {
+  color: var(--text-muted);
+}
+
+.detail-value {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.deal-value-highlight {
+  color: var(--success);
+}
+
+/* HITL Actions */
+.hitl-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hitl-icon {
+  font-size: 1.2rem;
+}
+
+.hitl-header h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.hitl-deal-name {
+  padding: 0 12px 12px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.hitl-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+.hitl-btn {
+  flex: 1;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.2s;
+}
+
+.hitl-btn:hover {
+  opacity: 0.8;
+}
+
+.hitl-btn-cancel {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.hitl-btn-confirm {
+  background: rgba(48, 209, 88, 0.2);
+  color: var(--success);
+}
+
+.hitl-btn-danger {
+  background: rgba(255, 69, 58, 0.2);
+  color: var(--danger);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+@media (max-width: 1200px) {
+
+  /* On smaller screens, we might have to scroll horizontally if it gets too tight 
+     BUT preference is to fit. Let's allowing wrapping if absolutely needed 
+     or just let grid handle it with minmax */
+  .pipeline-board {
+    /* If screen is really small, we must scroll. */
+    overflow-x: auto;
+  }
 }
