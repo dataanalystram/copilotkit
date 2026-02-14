@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { useCopilotReadable, useCopilotAction, useCopilotChatSuggestions } from "@copilotkit/react-core";
 import { Deal, DealStage, PIPELINE_STAGES, STAGE_CONFIG, SAMPLE_DEALS } from "@/lib/types";
+import { usePersistedState, usePipelineAnalytics } from "@/lib/hooks";
 import { DealCard } from "./DealCard";
 import { PipelineSummary } from "./PipelineSummary";
 import { DealPreview, MovePreview, CloseDealConfirm } from "./GenerativeUI";
+import { showToast } from "./Toast";
 import confetti from "canvas-confetti";
 
 // 🎉 Fire confetti when a deal is won
@@ -35,15 +37,16 @@ function fireCelebration() {
 }
 
 export function PipelineBoard() {
-    const [deals, setDeals] = useState<Deal[]>(SAMPLE_DEALS);
+    const [deals, setDeals] = usePersistedState<Deal[]>("dealflow-deals", SAMPLE_DEALS);
 
-    // ── Smart context for the copilot ───────────────────────────────
-    const totalValue = deals.reduce((sum, d) => sum + d.value, 0);
-    const activeDeals = deals.filter(
-        (d) => d.stage !== "closed_won" && d.stage !== "closed_lost"
-    );
-    const wonDeals = deals.filter((d) => d.stage === "closed_won");
-    const wonValue = wonDeals.reduce((sum, d) => sum + d.value, 0);
+    // ── Computed analytics (deduplicated via hook) ───────────────────
+    const analytics = usePipelineAnalytics(deals);
+    const { totalValue, activeDeals, wonDeals, wonValue } = {
+        totalValue: analytics.totalValue,
+        activeDeals: analytics.activeDeals,
+        wonDeals: analytics.wonDeals,
+        wonValue: analytics.wonValue,
+    };
 
     useCopilotReadable({
         description: "Current sales pipeline state with all deals and analytics",
@@ -91,6 +94,16 @@ export function PipelineBoard() {
             },
         ],
         handler: async ({ name, value, company, contactName, contactEmail, stage }) => {
+            // Validate: no duplicate deal names
+            const duplicate = deals.find(
+                (d) => d.name.toLowerCase() === name.toLowerCase()
+            );
+            if (duplicate) {
+                return `❌ A deal named "${name}" already exists in ${STAGE_CONFIG[duplicate.stage].label}. Use a different name.`;
+            }
+            const validStage = (stage && PIPELINE_STAGES.includes(stage as DealStage))
+                ? (stage as DealStage)
+                : "lead";
             const newDeal: Deal = {
                 id: `deal_${Date.now()}`,
                 name,
@@ -98,11 +111,12 @@ export function PipelineBoard() {
                 company,
                 contactName: contactName || "",
                 contactEmail: contactEmail || "",
-                stage: (stage as DealStage) || "lead",
+                stage: validStage,
                 createdAt: new Date().toISOString(),
             };
             setDeals((prev) => [...prev, newDeal]);
-            return `✅ Deal "${name}" created in ${STAGE_CONFIG[(stage as DealStage) || "lead"].label} stage — $${value.toLocaleString()} for ${company}.`;
+            showToast(`Deal "${name}" created — $${value.toLocaleString()}`, "success", "✨");
+            return `✅ Deal "${name}" created in ${STAGE_CONFIG[validStage].label} stage — $${value.toLocaleString()} for ${company}.`;
         },
         render: ({ status, args }) => (
             <DealPreview
@@ -132,17 +146,27 @@ export function PipelineBoard() {
             },
         ],
         handler: async ({ dealName, newStage }) => {
-            const dealIndex = deals.findIndex(
-                (d) => d.name.toLowerCase() === dealName.toLowerCase()
-            );
-            if (dealIndex === -1) {
-                return `❌ Deal "${dealName}" not found. Available deals: ${deals.map((d) => d.name).join(", ")}`;
+            // Validate stage
+            if (!PIPELINE_STAGES.includes(newStage as DealStage)) {
+                return `❌ Invalid stage "${newStage}". Valid stages: ${PIPELINE_STAGES.join(", ")}`;
             }
+            // Use updater to avoid stale closure
+            let found = false;
             setDeals((prev) => {
+                const idx = prev.findIndex(
+                    (d) => d.name.toLowerCase() === dealName.toLowerCase()
+                );
+                if (idx === -1) return prev;
+                found = true;
                 const updated = [...prev];
-                updated[dealIndex] = { ...updated[dealIndex], stage: newStage as DealStage };
+                updated[idx] = { ...updated[idx], stage: newStage as DealStage };
                 return updated;
             });
+            if (!found) {
+                showToast(`Deal "${dealName}" not found`, "error", "❌");
+                return `❌ Deal "${dealName}" not found. Available deals: ${deals.map((d) => d.name).join(", ")}`;
+            }
+            showToast(`"${dealName}" → ${STAGE_CONFIG[newStage as DealStage].label}`, "success", "🔄");
             return `✅ Deal "${dealName}" moved to ${STAGE_CONFIG[newStage as DealStage].label}.`;
         },
         render: ({ status, args }) => (
@@ -192,23 +216,26 @@ export function PipelineBoard() {
                 outcome={args.outcome || "closed_won"}
                 isExecuting={status === "executing"}
                 onConfirm={() => {
-                    const dealIndex = deals.findIndex(
-                        (d) => d.name.toLowerCase() === (args.dealName || "").toLowerCase()
-                    );
-                    if (dealIndex !== -1) {
-                        const isWon = (args.outcome || "closed_won") === "closed_won";
-                        setDeals((prev) => {
-                            const updated = [...prev];
-                            updated[dealIndex] = {
-                                ...updated[dealIndex],
-                                stage: (args.outcome as DealStage) || "closed_won",
-                            };
-                            return updated;
-                        });
-                        // 🎉 Confetti on deal won!
-                        if (isWon) {
-                            setTimeout(fireCelebration, 300);
-                        }
+                    const isWon = (args.outcome || "closed_won") === "closed_won";
+                    // Use updater to avoid stale closure
+                    setDeals((prev) => {
+                        const idx = prev.findIndex(
+                            (d) => d.name.toLowerCase() === (args.dealName || "").toLowerCase()
+                        );
+                        if (idx === -1) return prev;
+                        const updated = [...prev];
+                        updated[idx] = {
+                            ...updated[idx],
+                            stage: (args.outcome as DealStage) || "closed_won",
+                        };
+                        return updated;
+                    });
+                    // 🎉 Confetti on deal won!
+                    if (isWon) {
+                        setTimeout(fireCelebration, 300);
+                        showToast(`Deal closed as Won! 🎉`, "success", "🏆");
+                    } else {
+                        showToast(`Deal closed as Lost`, "info", "❌");
                     }
                     respond?.({ approved: true, outcome: args.outcome });
                 }}
@@ -216,6 +243,74 @@ export function PipelineBoard() {
                     respond?.({ approved: false });
                 }}
             />
+        ),
+    });
+
+    // ── Tool: Delete Deal (HITL — Human in the Loop) ────────────────
+    useCopilotAction({
+        name: "delete_deal",
+        description:
+            "Delete a deal from the pipeline. This is a destructive, irreversible action that requires user confirmation via Human-in-the-Loop.",
+        parameters: [
+            { name: "dealName", type: "string", description: "Name of the deal to delete", required: true },
+        ],
+        renderAndWaitForResponse: ({ args, status, respond }) => (
+            <div style={{
+                background: "rgba(28, 28, 30, 0.95)",
+                border: "0.5px solid rgba(255,69,58,0.3)",
+                borderRadius: "12px",
+                padding: "16px",
+                color: "#fff",
+                fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif",
+                fontSize: "14px",
+            }}>
+                <div style={{
+                    display: "flex", alignItems: "center", gap: "8px",
+                    marginBottom: "12px", paddingBottom: "12px",
+                    borderBottom: "1px solid rgba(255,255,255,0.1)",
+                }}>
+                    <span style={{ fontSize: "1.2rem" }}>🗑️</span>
+                    <h4 style={{ fontSize: "0.9rem", fontWeight: 600, margin: 0 }}>
+                        Confirm: Delete Deal?
+                    </h4>
+                </div>
+                <p style={{ fontSize: "0.85rem", color: "rgba(235,235,245,0.6)", margin: "0 0 12px 0" }}>
+                    {args.dealName || "Loading..."}
+                </p>
+                {status === "executing" && (
+                    <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                            style={{
+                                flex: 1, padding: "8px", borderRadius: "6px",
+                                fontSize: "0.8rem", fontWeight: 600, cursor: "pointer",
+                                border: "none", background: "rgba(255,255,255,0.1)", color: "#fff",
+                            }}
+                            onClick={() => respond?.({ approved: false })}
+                        >Cancel</button>
+                        <button
+                            style={{
+                                flex: 1, padding: "8px", borderRadius: "6px",
+                                fontSize: "0.8rem", fontWeight: 600, cursor: "pointer",
+                                border: "none", background: "rgba(255,69,58,0.2)", color: "#ff453a",
+                            }}
+                            onClick={() => {
+                                setDeals((prev) =>
+                                    prev.filter(
+                                        (d) => d.name.toLowerCase() !== (args.dealName || "").toLowerCase()
+                                    )
+                                );
+                                showToast(`"${args.dealName}" deleted`, "info", "🗑️");
+                                respond?.({ approved: true });
+                            }}
+                        >🗑️ Delete Deal</button>
+                    </div>
+                )}
+                {status === "complete" && (
+                    <p style={{ color: "#ff453a", fontWeight: 600, fontSize: "0.85rem", margin: 0 }}>
+                        🗑️ Deal deleted from pipeline.
+                    </p>
+                )}
+            </div>
         ),
     });
 

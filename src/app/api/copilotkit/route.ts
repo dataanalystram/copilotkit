@@ -5,7 +5,7 @@ import {
     copilotRuntimeNextJSAppRouterEndpoint,
 } from "@copilotkit/runtime";
 import OpenAI from "openai";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 function getServiceAdapter() {
     // Support both OpenAI and Google Gemini — auto-detect which key is available
@@ -28,14 +28,22 @@ function getServiceAdapter() {
 }
 
 export const POST = async (req: NextRequest) => {
-    const serviceAdapter = getServiceAdapter();
-    const runtime = new CopilotRuntime();
+    try {
+        const serviceAdapter = getServiceAdapter();
+        const runtime = new CopilotRuntime();
 
-    const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
-        runtime,
-        serviceAdapter,
-        endpoint: "/api/copilotkit",
-    });
+        const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
+            runtime,
+            serviceAdapter,
+            endpoint: "/api/copilotkit",
+        });
 
-    return handleRequest(req);
+        return handleRequest(req);
+    } catch (error) {
+        console.error("[DealFlow] Runtime error:", error);
+        return NextResponse.json(
+            { error: error instanceof Error ? error.message : "Internal server error" },
+            { status: 500 }
+        );
+    }
 };
