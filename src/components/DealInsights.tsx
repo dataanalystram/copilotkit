@@ -8,7 +8,7 @@ interface DealInsightsProps {
     status: "inProgress" | "executing" | "complete";
 }
 
-function computeDealScore(deal: Deal, allDeals: Deal[]): {
+export function computeDealScore(deal: Deal, allDeals: Deal[]): {
     score: number;
     riskLevel: "low" | "medium" | "high";
     factors: { label: string; impact: "positive" | "negative" | "neutral"; detail: string }[];
@@ -195,5 +195,3 @@ function MiniStat({ label, value }: { label: string; value: string }) {
     );
 }
 
-// Re-export the scoring function for use in tools
-export { computeDealScore };

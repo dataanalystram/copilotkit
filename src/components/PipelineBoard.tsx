@@ -11,6 +11,7 @@ import { DealAnalytics } from "./DealAnalytics";
 import { DealInsights } from "./DealInsights";
 import { DealScoreCard } from "./DealScoreCard";
 import { ActivityTimeline } from "./ActivityTimeline";
+import { StrategyAdvisor } from "./StrategyAdvisor";
 import { showToast } from "./Toast";
 import confetti from "canvas-confetti";
 
@@ -76,7 +77,7 @@ export function PipelineBoard() {
             availableTools: [
                 "create_deal", "move_deal", "close_deal", "delete_deal",
                 "pipeline_summary", "analyze_pipeline", "get_deal_insights",
-                "score_deals", "show_activity"
+                "score_deals", "show_activity", "strategy_advisor"
             ],
             deals: deals.map((d) => ({
                 name: d.name,
@@ -171,22 +172,24 @@ export function PipelineBoard() {
             if (!PIPELINE_STAGES.includes(newStage as DealStage)) {
                 return `❌ Invalid stage "${newStage}". Valid stages: ${PIPELINE_STAGES.join(", ")}`;
             }
-            // Use updater to avoid stale closure
-            let found = false;
+            // Check if deal exists BEFORE updating state (avoids stale closure on found flag)
+            const dealExists = deals.some(
+                (d) => d.name.toLowerCase() === dealName.toLowerCase()
+            );
+            if (!dealExists) {
+                showToast(`Deal "${dealName}" not found`, "error", "❌");
+                return `❌ Deal "${dealName}" not found. Available deals: ${deals.map((d) => d.name).join(", ")}`;
+            }
+            // Apply state update
             setDeals((prev) => {
                 const idx = prev.findIndex(
                     (d) => d.name.toLowerCase() === dealName.toLowerCase()
                 );
                 if (idx === -1) return prev;
-                found = true;
                 const updated = [...prev];
                 updated[idx] = { ...updated[idx], stage: newStage as DealStage };
                 return updated;
             });
-            if (!found) {
-                showToast(`Deal "${dealName}" not found`, "error", "❌");
-                return `❌ Deal "${dealName}" not found. Available deals: ${deals.map((d) => d.name).join(", ")}`;
-            }
             showToast(`"${dealName}" → ${STAGE_CONFIG[newStage as DealStage].label}`, "success", "🔄");
             logActivity("moved", `Moved "${dealName}" to ${STAGE_CONFIG[newStage as DealStage].label}`);
             return `✅ Deal "${dealName}" moved to ${STAGE_CONFIG[newStage as DealStage].label}.`;
@@ -418,6 +421,25 @@ export function PipelineBoard() {
         render: ({ status }) => (
             <ActivityTimeline
                 activities={activities}
+                status={status === "complete" ? "complete" : "executing"}
+            />
+        ),
+    });
+
+    // ── Tool 10: AI Strategy Advisor (Multi-Step Agentic Flow) ────────
+    useCopilotAction({
+        name: "strategy_advisor",
+        description:
+            "Generate a strategic action plan for the sales pipeline. Analyzes all deals, scores them, identifies risks, and produces 3-5 prioritized strategic actions with interactive approve/skip buttons. Use when the user asks 'What should I focus on?', 'Give me a strategy', 'What\\'s my action plan?', or 'Advise me'.",
+        parameters: [],
+        handler: async () => {
+            logActivity("scored", "AI Strategy Advisor analyzed pipeline and generated action plan", "ai");
+            const activeDeals = deals.filter(d => d.stage !== "closed_won" && d.stage !== "closed_lost");
+            return `🧠 Strategy generated: ${activeDeals.length} active deals analyzed. Review the action plan above.`;
+        },
+        render: ({ status }) => (
+            <StrategyAdvisor
+                deals={deals}
                 status={status === "complete" ? "complete" : "executing"}
             />
         ),

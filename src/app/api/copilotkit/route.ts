@@ -18,7 +18,7 @@ function getServiceAdapter() {
     if (process.env.GOOGLE_API_KEY) {
         console.log("🔑 Using Google Gemini adapter");
         return new GoogleGenerativeAIAdapter({
-            model: "gemini-2.0-flash",
+            model: "gemini-2.5-flash",
         });
     }
 
