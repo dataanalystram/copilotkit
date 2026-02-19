@@ -1,6 +1,8 @@
 # ⚡ DealFlow — AI Sales Pipeline Copilot
 
-An AI-powered sales pipeline management tool built with **CopilotKit** + **LangGraph JS**. Features a Kanban board UI with an intelligent copilot sidebar that creates, moves, closes, and deletes deals through pipeline stages, provides analytics, and requests confirmation for high-stakes actions — all with production-grade error handling, data persistence, and toast notifications.
+An AI-powered sales pipeline management tool built with **CopilotKit** + **LangGraph JS** in under **60 minutes**. Features a Kanban board UI with an intelligent copilot sidebar that creates, moves, closes, and deletes deals through pipeline stages, provides analytics, and requests confirmation for high-stakes actions — all with production-grade error handling, data persistence, and toast notifications.
+
+> **📌 Branch Strategy:** The `main` branch contains the **60-minute submission** — everything built within the challenge timeframe. The `master` branch is the **"what if I had more time"** version with production-level upgrades: error boundaries, localStorage persistence, toast notifications, delete tool with HITL, responsive design, and hardened runtime. Both branches are fully working and deployable.
 
 ![Next.js](https://img.shields.io/badge/Next.js_16-black?style=flat-square&logo=next.js)
 ![CopilotKit](https://img.shields.io/badge/CopilotKit_v1.51-0a84ff?style=flat-square)
@@ -152,13 +154,15 @@ Then open **http://localhost:3000**
 
 ## What I'd Improve With More Time
 
-- **Agent backend** — Extract tools into a LangGraph JS `StateGraph` agent running as a separate service, connected via `HttpAgent` from `@ag-ui/client` for true AG-UI protocol communication
-- **Thread persistence** — Add SQLite storage for conversation history and deal state
-- **Drag-and-drop** — Let users manually drag deals between columns (complementing AI actions)
-- **Multi-agent** — Add a "Research Agent" that can look up company info (via Tavily) when creating deals
+- **Supabase backend** — Migrate from localStorage to **Supabase** for persistent deal storage, user authentication, and real-time sync across devices. Supabase's Row Level Security (RLS) for multi-tenant pipelines
+- **Agent backend with Supabase Edge Functions** — Extract tools into a LangGraph JS `StateGraph` agent running on Supabase Edge Functions, connected via `HttpAgent` from `@ag-ui/client` for true AG-UI protocol communication
+- **Supabase Realtime** — Live collaboration on the pipeline with other team members via Supabase Realtime subscriptions
+- **Drag-and-drop** — Let users manually drag deals between columns (complementing AI actions) using `@hello-pangea/dnd`
+- **Multi-agent** — Add a "Research Agent" that can look up company info (via Tavily/Perplexity API) when creating deals
 - **`useCoAgent`** — Migrate to bidirectional state sync with `useCoAgent` for fully shared typed state between agent and UI
-- **Tests** — Add React Testing Library tests for tool interactions and HITL flows
-- **Deal detail modal** — Click a deal card to view/edit full details, notes, and activity log
+- **Tests** — Add React Testing Library + Playwright tests for tool interactions and HITL flows
+- **Deal detail modal** — Click a deal card to view/edit full details, notes, AI-generated insights, and activity log
+- **Analytics dashboard** — Full reporting page with charts (Recharts) for pipeline velocity, conversion rates, and forecast
 
 ---
 
@@ -180,12 +184,52 @@ Then open **http://localhost:3000**
 
 ---
 
-## AI Tools Used
+## AI Tools & Research Workflow
 
-- **Gemini (Antigravity agent)**: Used for project scaffolding, component generation, and CSS styling. All output was reviewed, understood, and edited by me.
-- **CopilotKit docs + Context7**: Used for API reference and integration patterns.
+Building this project within 60 minutes required a deliberate multi-tool strategy. Here's exactly how each AI tool contributed:
 
-All code represents my understanding of the CopilotKit architecture and product vision.
+### 🔬 Research Phase (Pre-Build)
+- **Perplexity AI** — Deep-searched CopilotKit architecture, AG-UI protocol, and LangGraph JS integration patterns to understand how the pieces fit together
+- **Google Deep Research** — Extended research on CopilotKit's `useCopilotAction`, `renderAndWaitForResponse`, and generative UI patterns
+- **Claude Deep Research** — Created a comprehensive reference document (`claude.md`) distilling CopilotKit's core concepts, hooks, and best practices into a structured format that LLMs can consume as context. This "research-first" approach meant no time wasted figuring out APIs during the build
+
+### 🏗️ Build Phase (60 Minutes)
+- **Claude Opus 4.6** — Primary model for **all application logic**: CopilotKit tool definitions, state management, HITL flows, handler logic, stale closure fixes, and custom hooks (`usePersistedState`, `usePipelineAnalytics`). Opus was chosen for its strong reasoning on complex async state patterns
+- **Gemini 3.0** — Used for **UI design and CSS**: the Apple-inspired dark mode design system, glassmorphism effects, responsive breakpoints, toast animations, and visual polish. Gemini excels at visual/creative work
+- **Claude** — Used for **documentation**: README, DEMO_TALKTHROUGH.md, code comments, and architecture diagrams. Clean, structured technical writing
+
+### 📚 Reference Tools
+- **CopilotKit docs + Context7** — Live API reference queries during build for exact hook signatures and adapter configuration
+- **GitHub Copilot** — Inline code completions for boilerplate TypeScript
+
+> All output from every AI tool was reviewed, understood, tested, and edited by me. The code represents my understanding of the CopilotKit architecture and product vision.
+
+---
+
+## 🧠 Skills Demonstrated
+
+This project showcases more than just code — it demonstrates an **efficient multi-tool engineering workflow** that delivered a production-quality app in 60 minutes:
+
+| Skill | Evidence |
+|-------|----------|
+| **Research-first engineering** | Deep research with Perplexity, Google, and Claude *before* writing any code. Created `claude.md` as a reusable LLM context document |
+| **Multi-model orchestration** | Opus 4.6 for logic, Gemini 3.0 for design, Claude for docs — each model used for its strengths |
+| **CopilotKit mastery** | 5 tools, 2 HITL flows, Generative UI, shared state, chat suggestions — comprehensive feature coverage |
+| **Production thinking** | Error boundaries, localStorage persistence, input validation, runtime hardening — not just a demo, but production-ready code |
+| **Time management** | `main` branch = 60-min challenge. `master` branch = extended improvements. Clear branch strategy shows prioritization skills |
+| **UX design** | Apple HIG-inspired glassmorphism, toast notifications, confetti celebrations, responsive design — premium feel |
+| **TypeScript proficiency** | Strict typing, generic hooks, proper React patterns, no `any` hacks |
+
+---
+
+## 📋 Branch Strategy
+
+| Branch | Purpose | What's Included |
+|--------|---------|----------------|
+| **`main`** | **60-minute submission** | Core CopilotKit integration: 4 tools, Generative UI, HITL, Kanban board, Apple design |
+| **`master`** | **Extended / production** | Everything in `main` +: ErrorBoundary, localStorage persistence, Toast system, delete_deal HITL, analytics hook, responsive CSS, runtime hardening, stale closure fixes, input validation |
+
+> The `master` branch represents what I would ship if this were a real production app. The `main` branch proves I can deliver a polished, working demo under time pressure.
 
 ---
 
