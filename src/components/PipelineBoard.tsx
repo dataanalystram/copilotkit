@@ -2,11 +2,15 @@
 
 import { useCallback } from "react";
 import { useCopilotReadable, useCopilotAction, useCopilotChatSuggestions } from "@copilotkit/react-core";
-import { Deal, DealStage, PIPELINE_STAGES, STAGE_CONFIG, SAMPLE_DEALS } from "@/lib/types";
+import { Deal, DealStage, PIPELINE_STAGES, STAGE_CONFIG, SAMPLE_DEALS, Activity, STAGE_PROBABILITY } from "@/lib/types";
 import { usePersistedState, usePipelineAnalytics } from "@/lib/hooks";
 import { DealCard } from "./DealCard";
 import { PipelineSummary } from "./PipelineSummary";
 import { DealPreview, MovePreview, CloseDealConfirm } from "./GenerativeUI";
+import { DealAnalytics } from "./DealAnalytics";
+import { DealInsights } from "./DealInsights";
+import { DealScoreCard } from "./DealScoreCard";
+import { ActivityTimeline } from "./ActivityTimeline";
 import { showToast } from "./Toast";
 import confetti from "canvas-confetti";
 
@@ -38,6 +42,16 @@ function fireCelebration() {
 
 export function PipelineBoard() {
     const [deals, setDeals] = usePersistedState<Deal[]>("dealflow-deals", SAMPLE_DEALS);
+    const [activities, setActivities] = usePersistedState<Activity[]>("dealflow-activities", []);
+
+    // Helper to log activities
+    const logActivity = useCallback((type: Activity["type"], description: string, triggeredBy: "user" | "ai" = "ai") => {
+        const activity: Activity = {
+            id: `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            type, description, timestamp: new Date().toISOString(), triggeredBy,
+        };
+        setActivities((prev) => [...prev, activity]);
+    }, [setActivities]);
 
     // ── Computed analytics (deduplicated via hook) ───────────────────
     const analytics = usePipelineAnalytics(deals);
@@ -49,7 +63,7 @@ export function PipelineBoard() {
     };
 
     useCopilotReadable({
-        description: "Current sales pipeline state with all deals and analytics",
+        description: "Current sales pipeline state with all deals, analytics, and available tools",
         value: JSON.stringify({
             summary: {
                 totalDeals: deals.length,
@@ -57,7 +71,13 @@ export function PipelineBoard() {
                 activeDeals: activeDeals.length,
                 closedWon: wonDeals.length,
                 closedWonValue: wonValue,
+                activityCount: activities.length,
             },
+            availableTools: [
+                "create_deal", "move_deal", "close_deal", "delete_deal",
+                "pipeline_summary", "analyze_pipeline", "get_deal_insights",
+                "score_deals", "show_activity"
+            ],
             deals: deals.map((d) => ({
                 name: d.name,
                 company: d.company,
@@ -72,7 +92,7 @@ export function PipelineBoard() {
 
     // ── Chat suggestion chips (guided experience) ───────────────────
     useCopilotChatSuggestions({
-        instructions: `Based on the current pipeline state, suggest 3 helpful actions. Available deals: ${deals.map((d) => `${d.name} (${STAGE_CONFIG[d.stage].label})`).join(", ")}. Suggest realistic next steps like moving deals forward, creating new deals, getting analytics, or closing deals. Keep suggestions short and actionable (under 8 words).`,
+        instructions: `Based on the current pipeline state, suggest 3 helpful actions. Available deals: ${deals.map((d) => `${d.name} (${STAGE_CONFIG[d.stage].label})`).join(", ")}. You can: create deals, move deals, close deals, analyze the pipeline, score all deals, get insights on a specific deal, or show the activity log. Suggest realistic next steps that showcase advanced capabilities. Keep suggestions short and actionable (under 8 words).`,
         maxSuggestions: 3,
     });
 
@@ -115,6 +135,7 @@ export function PipelineBoard() {
                 createdAt: new Date().toISOString(),
             };
             setDeals((prev) => [...prev, newDeal]);
+            logActivity("created", `Created "${name}" ($${value.toLocaleString()}) for ${company}`);
             showToast(`Deal "${name}" created — $${value.toLocaleString()}`, "success", "✨");
             return `✅ Deal "${name}" created in ${STAGE_CONFIG[validStage].label} stage — $${value.toLocaleString()} for ${company}.`;
         },
@@ -167,6 +188,7 @@ export function PipelineBoard() {
                 return `❌ Deal "${dealName}" not found. Available deals: ${deals.map((d) => d.name).join(", ")}`;
             }
             showToast(`"${dealName}" → ${STAGE_CONFIG[newStage as DealStage].label}`, "success", "🔄");
+            logActivity("moved", `Moved "${dealName}" to ${STAGE_CONFIG[newStage as DealStage].label}`);
             return `✅ Deal "${dealName}" moved to ${STAGE_CONFIG[newStage as DealStage].label}.`;
         },
         render: ({ status, args }) => (
@@ -234,8 +256,10 @@ export function PipelineBoard() {
                     if (isWon) {
                         setTimeout(fireCelebration, 300);
                         showToast(`Deal closed as Won! 🎉`, "success", "🏆");
+                        logActivity("closed", `Closed "${args.dealName}" as WON 🏆`);
                     } else {
                         showToast(`Deal closed as Lost`, "info", "❌");
+                        logActivity("closed", `Closed "${args.dealName}" as Lost`);
                     }
                     respond?.({ approved: true, outcome: args.outcome });
                 }}
@@ -300,6 +324,7 @@ export function PipelineBoard() {
                                     )
                                 );
                                 showToast(`"${args.dealName}" deleted`, "info", "🗑️");
+                                logActivity("deleted", `Deleted "${args.dealName}" from pipeline`);
                                 respond?.({ approved: true });
                             }}
                         >🗑️ Delete Deal</button>
@@ -311,6 +336,90 @@ export function PipelineBoard() {
                     </p>
                 )}
             </div>
+        ),
+    });
+
+    // ── Tool: Analyze Pipeline (Advanced Analytics Dashboard) ────────
+    useCopilotAction({
+        name: "analyze_pipeline",
+        description:
+            "Show a comprehensive pipeline analytics dashboard with KPIs, stage distribution chart, win rate, and weighted forecast. Use when the user asks about pipeline health, analytics, performance, or statistics.",
+        parameters: [],
+        handler: async () => {
+            return `📊 Pipeline analysis complete. Total value: $${(totalValue / 1000).toFixed(0)}k across ${deals.length} deals. Win rate: ${analytics.winRate}%. Weighted forecast: $${(activeDeals.reduce((s, d) => s + d.value * (STAGE_PROBABILITY[d.stage as DealStage] || 0), 0) / 1000).toFixed(0)}k.`;
+        },
+        render: ({ status }) => (
+            <DealAnalytics
+                deals={deals}
+                status={status === "complete" ? "complete" : "executing"}
+            />
+        ),
+    });
+
+    // ── Tool: Get Deal Insights (AI Scoring per Deal) ────────────────
+    useCopilotAction({
+        name: "get_deal_insights",
+        description:
+            "Get AI-powered insights for a specific deal including risk score (0-100), score breakdown factors, and suggested next action. Use when the user asks about a specific deal's health, risk, or what to do next.",
+        parameters: [
+            { name: "dealName", type: "string", description: "Name of the deal to analyze", required: true },
+        ],
+        handler: async ({ dealName }) => {
+            const deal = deals.find(
+                (d) => d.name.toLowerCase() === dealName.toLowerCase()
+            );
+            if (!deal) {
+                return `❌ Deal "${dealName}" not found. Available: ${deals.map(d => d.name).join(", ")}`;
+            }
+            return `🔍 Analysis complete for "${deal.name}".`;
+        },
+        render: ({ status, args }) => {
+            const deal = deals.find(
+                (d) => d.name.toLowerCase() === (args.dealName || "").toLowerCase()
+            );
+            if (!deal) return <p style={{ color: "#ff453a", fontSize: "0.85rem" }}>Deal not found</p>;
+            return (
+                <DealInsights
+                    deal={deal}
+                    allDeals={deals}
+                    status={status === "complete" ? "complete" : "executing"}
+                />
+            );
+        },
+    });
+
+    // ── Tool: Score All Deals (Ranked List) ───────────────────────────
+    useCopilotAction({
+        name: "score_deals",
+        description:
+            "Score and rank all active deals by AI-computed health score. Shows a ranked list with risk levels, weighted values, and scores. Use when the user wants to prioritize deals or see which deals need attention.",
+        parameters: [],
+        handler: async () => {
+            logActivity("scored", `AI scored ${activeDeals.length} active deals`);
+            return `🏅 Scored ${activeDeals.length} active deals. Check the ranked list below.`;
+        },
+        render: ({ status }) => (
+            <DealScoreCard
+                deals={deals}
+                status={status === "complete" ? "complete" : "executing"}
+            />
+        ),
+    });
+
+    // ── Tool: Show Activity Log ──────────────────────────────────────
+    useCopilotAction({
+        name: "show_activity",
+        description:
+            "Show the recent activity log of all deal mutations — creates, moves, closes, deletes. Shows who triggered each action (user vs AI) with timestamps.",
+        parameters: [],
+        handler: async () => {
+            return `📋 Showing ${activities.length} recent activities.`;
+        },
+        render: ({ status }) => (
+            <ActivityTimeline
+                activities={activities}
+                status={status === "complete" ? "complete" : "executing"}
+            />
         ),
     });
 

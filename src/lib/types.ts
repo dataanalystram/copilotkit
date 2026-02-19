@@ -6,6 +6,14 @@ export type DealStage =
     | "closed_won"
     | "closed_lost";
 
+export interface Activity {
+    id: string;
+    type: "created" | "moved" | "closed" | "deleted" | "scored";
+    description: string;
+    timestamp: string;
+    triggeredBy: "user" | "ai";
+}
+
 export interface Deal {
     id: string;
     name: string;
@@ -15,7 +23,18 @@ export interface Deal {
     contactEmail: string;
     stage: DealStage;
     createdAt: string;
+    activityLog?: Activity[];
 }
+
+// Stage win probability for forecasting
+export const STAGE_PROBABILITY: Record<DealStage, number> = {
+    lead: 0.1,
+    qualified: 0.25,
+    proposal: 0.5,
+    negotiation: 0.75,
+    closed_won: 1.0,
+    closed_lost: 0.0,
+};
 
 export const STAGE_CONFIG: Record<
     DealStage,
