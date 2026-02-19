@@ -14,31 +14,45 @@ An AI-powered sales pipeline management tool built with **CopilotKit** + **LangG
 
 ## What I Built
 
-A **canvas-pattern** sales pipeline (not just a chat overlay) where an AI copilot **directly manipulates the application state** through tool calls. The copilot can:
+A **canvas-pattern** sales pipeline (not just a chat overlay) where an AI copilot **directly manipulates the application state** through **9 AI-callable tools**. The copilot can:
 
-1. **Create deals** — Adds deal cards to the Kanban board with validation (duplicate name guard, stage validation)
-2. **Move deals** — Transitions deals between pipeline stages with LLM-hallucination protection
-3. **Pipeline analytics** — Renders a rich, interactive summary widget inline in the chat (Generative UI)
-4. **Close deals** — Uses **Human-in-the-Loop (HITL)** confirmation before marking deals as Won/Lost, with 🎉 confetti celebration
-5. **Delete deals** — Uses **HITL confirmation** with a destructive-action dialog before removing deals from the pipeline
+1. **Create deals** — Adds deal cards with validation (duplicate name guard, stage validation)
+2. **Move deals** — Transitions deals between stages with LLM-hallucination protection
+3. **Pipeline summary** — Renders a rich summary widget inline in chat (Generative UI)
+4. **Close deals** — **HITL confirmation** before marking Won/Lost + 🎉 confetti celebration
+5. **Delete deals** — **HITL confirmation** with destructive-action dialog
+6. **Analyze pipeline** — Rich analytics dashboard with KPIs, stage distribution chart, win rate, weighted forecast
+7. **Get deal insights** — Per-deal AI scoring (0-100) with risk factors and suggested next actions
+8. **Score all deals** — Ranked list of all deals by AI-computed health score
+9. **Show activity log** — Full mutation timeline tracking all actions (user vs. AI attribution)
 
 ### CopilotKit Features Demonstrated
 
 | Feature | Implementation | Where |
 |---------|---------------|-------|
-| **Generative UI** | `useCopilotAction` with `render` — rich deal preview cards, move confirmations, and analytics widgets rendered inline in chat | `PipelineBoard.tsx`, `GenerativeUI.tsx` |
+| **Generative UI (×8)** | `useCopilotAction` with `render` — 8 distinct React components rendered inline in chat: deal previews, move confirmations, analytics dashboards, scoring cards, insights, and activity timelines | `PipelineBoard.tsx`, `GenerativeUI.tsx`, `DealAnalytics.tsx`, `DealInsights.tsx`, `DealScoreCard.tsx`, `ActivityTimeline.tsx` |
 | **Human-in-the-Loop (×2)** | `renderAndWaitForResponse` — confirmation dialogs for both **closing** and **deleting** deals; agent pauses until user responds | `PipelineBoard.tsx`, `GenerativeUI.tsx` |
-| **Shared State** | `useCopilotReadable` — full pipeline state + analytics (deal count, total value, won revenue, stage breakdown) shared as AI context | `PipelineBoard.tsx` |
-| **Frontend Tools** | **5 tools** defined via `useCopilotAction` with handlers that directly mutate React state | `PipelineBoard.tsx` |
-| **Chat Suggestions** | `useCopilotChatSuggestions` — dynamic suggestion chips based on current pipeline state for guided UX | `PipelineBoard.tsx` |
+| **Shared State (Rich)** | `useCopilotReadable` — full pipeline state + analytics + activity count + available tools list shared as AI context | `PipelineBoard.tsx` |
+| **Frontend Tools (×9)** | 9 tools defined via `useCopilotAction` with handlers, Generative UI renders, and HITL flows | `PipelineBoard.tsx` |
+| **Chat Suggestions** | `useCopilotChatSuggestions` — dynamic suggestion chips that highlight advanced capabilities (scoring, insights, analytics) | `PipelineBoard.tsx` |
 | **AG-UI Compatible** | LangGraph JS agent defined with `createReactAgent` + Zod schemas — ready for extraction to a separate agent backend via `@ag-ui/client` | `agent.ts` |
+
+### Advanced Agentic Features (master branch)
+
+| Feature | Detail |
+|---------|--------|
+| **AI Deal Scoring** | Multi-factor algorithm scores each deal 0-100 based on value, stage progression, pipeline age, and contact completeness. Color-coded risk levels: 🟢 Low, 🟡 Medium, 🔴 High |
+| **Pipeline Analytics Dashboard** | KPI grid (total pipeline, win rate, forecast), horizontal bar chart for stage distribution with animated fills, and summary stats — all rendered as Generative UI in chat |
+| **Weighted Forecast** | Calculates expected revenue using stage probability weights: Lead 10%, Qualified 25%, Proposal 50%, Negotiation 75% |
+| **Activity Timeline** | Tracks all deal mutations with timestamps, type-colored dots, and AI vs. User attribution. Persists to localStorage |
+| **Suggested Next Actions** | AI-generated per-deal suggestions based on current stage: discovery calls, proposal follow-ups, negotiation tactics |
 
 ### Production-Level Features
 
 | Feature | Detail |
 |---------|--------|
-| **Error Boundary** | React error boundary catches rendering crashes (e.g., from generative UI) and shows a styled reload screen instead of a white page |
-| **Data Persistence** | Deals persist to `localStorage` via `usePersistedState` hook — survives page reload, syncs across browser tabs |
+| **Error Boundary** | React error boundary catches rendering crashes and shows a styled reload screen instead of a white page |
+| **Data Persistence** | Deals + activities persist to `localStorage` via `usePersistedState` hook — survives page reload, syncs across browser tabs |
 | **Toast Notifications** | Glassmorphism toasts appear on every action: create (✨), move (🔄), close (🏆), delete (🗑️), and errors (❌) |
 | **Runtime Hardening** | CopilotKit runtime route wrapped in try/catch with proper JSON error responses (500) instead of unhandled throws |
 | **Input Validation** | Duplicate deal name guard, stage validation (rejects hallucinated stages), all inside `setDeals` updaters to prevent stale closures |
@@ -54,10 +68,11 @@ A **canvas-pattern** sales pipeline (not just a chat overlay) where an AI copilo
 │  │  Pipeline Board     │  │  CopilotSidebar           │  │
 │  │  (6-stage Kanban)   │  │  (Chat + Generative UI)   │  │
 │  │                     │  │                           │  │
-│  │  5 useCopilotAction │←→│  Rich Cards & Widgets     │  │
+│  │  9 useCopilotAction │←→│  8 Rich UI Components     │  │
 │  │  useCopilotReadable │  │  2× HITL Confirm Dialogs  │  │
-│  │  useCopilotChat     │  │  Chat Suggestion Chips    │  │
-│  │  Suggestions        │  │  Toast Notifications      │  │
+│  │  useCopilotChat     │  │  AI Deal Scoring (0-100)  │  │
+│  │  Suggestions        │  │  Analytics + Forecasting  │  │
+│  │                     │  │  Activity Timeline        │  │
 │  └────────────────────┘  └───────────────────────────┘  │
 │           ↕                        ↕                     │
 │  usePersistedState ←→ localStorage (cross-tab sync)     │
@@ -123,10 +138,18 @@ Then open **http://localhost:3000**
    > "Close the Security Audit deal as won"
    - 🏆 Confirmation dialog — click **"✅ Confirm Won"** to approve
    - 🎉 Confetti celebration + toast notification
-6. **Delete a deal (HITL):**
-   > "Delete the old Cloud Migration deal"
-   - 🗑️ Red-themed destructive confirmation dialog
-   - Click **"🗑️ Delete Deal"** or **Cancel** — toast confirms the action
+6. **🆕 Analyze pipeline (Advanced):**
+   > "Analyze the pipeline" or "How is my pipeline doing?"
+   - 📊 Rich analytics dashboard renders in chat: KPI grid, stage distribution chart, weighted forecast
+7. **🆕 Score all deals:**
+   > "Score my deals" or "Which deals need attention?"
+   - 🏅 Ranked list of all deals with AI scores (0–100), risk badges, and weighted values
+8. **🆕 Get deal insights:**
+   > "Give me insights on the Annual SaaS License deal"
+   - 🔍 Per-deal card with score breakdown, risk factors, and a suggested next action
+9. **🆕 Show activity log:**
+   > "Show me the activity log"
+   - 📋 Full timeline of all deal mutations with AI vs. User attribution
 
 ---
 
@@ -138,17 +161,19 @@ Then open **http://localhost:3000**
 
 3. **Two HITL confirmations** — Both "close deal" and "delete deal" require confirmation — creating/moving deals feel safe to auto-execute. This mirrors real-world UX where you gate irreversible/destructive actions.
 
-4. **Generative UI for every tool** — Each tool renders a meaningful React component in chat — deal preview cards, move confirmations, analytics widgets, and delete confirmations. Agents communicate through rich UI, not just text.
+4. **Generative UI for every tool** — All 9 tools render meaningful React components in chat — deal previews, analytics dashboards, scoring cards, insights, activity timelines. Agents communicate through rich UI, not just text.
 
 5. **Apple-inspired dark mode design** — Custom CSS with glassmorphism, SF Pro typography, system colors, and subtle backdrop-filter effects for a premium native-app feel. No generic Bootstrap/Material — everything hand-crafted.
 
-6. **Data persistence** — `usePersistedState` hook syncs deals to localStorage with cross-tab support via `storage` event. SSR-safe with `typeof window` check.
+6. **Data persistence** — `usePersistedState` hook syncs deals + activities to localStorage with cross-tab support via `storage` event. SSR-safe with `typeof window` check.
 
 7. **Stale closure prevention** — All `findIndex` lookups run inside `setDeals` updater functions, preventing bugs when multiple deal mutations happen in quick succession.
 
-8. **Dual LLM support** — Auto-detects OpenAI or Google Gemini keys at runtime. Demonstrates adapter flexibility and makes the demo accessible without paid API keys (Gemini has a free tier).
+8. **AI deal scoring algorithm** — Multi-factor scoring (0–100) based on deal value vs. average, stage progression, pipeline age, and contact completeness. Color-coded risk levels drive suggested next actions.
 
-9. **Seeded sample data** — Pre-populated with 4 deals across different stages so the demo is immediately interactive without any setup.
+9. **Dual LLM support** — Auto-detects OpenAI or Google Gemini keys at runtime. Demonstrates adapter flexibility and makes the demo accessible without paid API keys (Gemini has a free tier).
+
+10. **Seeded sample data** — Pre-populated with 4 deals across different stages so the demo is immediately interactive without any setup.
 
 ---
 
@@ -254,17 +279,22 @@ dealflow/
 │   │   ├── layout.tsx                # Root layout with Inter font + metadata
 │   │   └── page.tsx                  # Main page (ErrorBoundary + CopilotKit + ToastContainer)
 │   ├── components/
+│   │   ├── ActivityTimeline.tsx      # 🆕 Mutation timeline with timestamps and AI/User attribution
+│   │   ├── DealAnalytics.tsx         # 🆕 Pipeline analytics dashboard (KPIs, chart, forecast)
 │   │   ├── DealCard.tsx              # Individual deal card (glassmorphism)
+│   │   ├── DealInsights.tsx          # 🆕 Per-deal AI scoring with risk factors + suggestions
+│   │   ├── DealScoreCard.tsx         # 🆕 Ranked deal list with AI health scores
 │   │   ├── ErrorBoundary.tsx         # React error boundary with styled fallback UI
 │   │   ├── GenerativeUI.tsx          # Generative UI widgets (DealPreview, MovePreview, CloseDealConfirm)
-│   │   ├── PipelineBoard.tsx         # Kanban board + all 5 CopilotKit tools (create, move, summary, close, delete)
-│   │   ├── PipelineSummary.tsx       # Pipeline analytics widget (stats + stage breakdown)
+│   │   ├── PipelineBoard.tsx         # Kanban board + all 9 CopilotKit tools + activity tracking
+│   │   ├── PipelineSummary.tsx       # Pipeline summary widget (stats + stage breakdown)
 │   │   └── Toast.tsx                 # Toast notification system (glassmorphism, auto-dismiss)
 │   └── lib/
 │       ├── agent.ts                  # LangGraph agent definition (createReactAgent + Zod tools)
 │       ├── hooks.ts                  # Custom hooks (usePersistedState, usePipelineAnalytics)
-│       └── types.ts                  # TypeScript types, stage config, sample data
+│       └── types.ts                  # TypeScript types, Activity, STAGE_PROBABILITY, sample data
 ├── DEMO_TALKTHROUGH.md               # Presentation script for demo walkthrough
 ├── .env.example                      # API key configuration template
 └── README.md
 ```
+
