@@ -1,25 +1,35 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 
 /**
  * Custom hook for persisting state to localStorage.
- * Falls back to initial value on first load or parse errors.
+ * SSR-safe: always initializes with `initialValue` during SSR,
+ * then hydrates from localStorage on mount to avoid hydration mismatches.
  * Syncs across tabs via the `storage` event.
  */
 export function usePersistedState<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
-    const [state, setState] = useState<T>(() => {
-        if (typeof window === "undefined") return initialValue;
+    // Always initialize with the default value (SSR-safe, prevents hydration mismatch)
+    const [state, setState] = useState<T>(initialValue);
+    const isHydrated = useRef(false);
+
+    // Hydrate from localStorage AFTER mount (client-side only)
+    useEffect(() => {
         try {
             const stored = localStorage.getItem(key);
-            return stored ? JSON.parse(stored) : initialValue;
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                setState(parsed);
+            }
         } catch {
-            return initialValue;
+            // ignore parse errors, use initialValue
         }
-    });
+        isHydrated.current = true;
+    }, [key]);
 
-    // Persist to localStorage whenever state changes
+    // Persist to localStorage whenever state changes (but not on initial hydration)
     useEffect(() => {
+        if (!isHydrated.current) return;
         try {
             localStorage.setItem(key, JSON.stringify(state));
         } catch (err) {

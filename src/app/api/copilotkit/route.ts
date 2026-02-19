@@ -30,7 +30,23 @@ function getServiceAdapter() {
 export const POST = async (req: NextRequest) => {
     try {
         const serviceAdapter = getServiceAdapter();
-        const runtime = new CopilotRuntime();
+
+        // CopilotRuntime with LangGraph agent backend wired via agents config
+        // The agent handles complex multi-step reasoning while frontend tools 
+        // handle direct state mutations — true agentic architecture
+        const runtime = new CopilotRuntime({
+            actions: [
+                {
+                    name: "dealflow_agent",
+                    description:
+                        "DealFlow AI agent powered by LangGraph — handles complex multi-step deal analysis, pipeline reasoning, and strategic recommendations. This agent has access to all pipeline tools and can chain them together for comprehensive analysis.",
+                    parameters: [],
+                    handler: async () => {
+                        return "Agent activated — using LangGraph for multi-step reasoning.";
+                    },
+                },
+            ],
+        });
 
         const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
             runtime,

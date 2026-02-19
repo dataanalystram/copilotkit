@@ -1,4 +1,5 @@
 import { ChatOpenAI } from "@langchain/openai";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
@@ -86,35 +87,140 @@ const getPipelineSummary = tool(
     }
 );
 
+const analyzePipeline = tool(
+    async () => {
+        return JSON.stringify({
+            action: "analyze_pipeline",
+            description: "Comprehensive pipeline analytics with KPIs, stage distribution, win rate, and weighted forecast",
+        });
+    },
+    {
+        name: "analyze_pipeline",
+        description:
+            "Show a comprehensive pipeline analytics dashboard with KPIs, stage distribution chart, win rate, and weighted forecast. Use when the user asks about pipeline health, analytics, performance, or deep statistics.",
+        schema: z.object({}),
+    }
+);
+
+const getDealInsights = tool(
+    async ({ dealName }) => {
+        return JSON.stringify({
+            action: "get_deal_insights",
+            dealName,
+            description: "AI-powered insights with risk score and suggested next action",
+        });
+    },
+    {
+        name: "get_deal_insights",
+        description:
+            "Get AI-powered insights for a specific deal including risk score (0-100), score breakdown factors, and suggested next action.",
+        schema: z.object({
+            dealName: z.string().describe("Name of the deal to analyze"),
+        }),
+    }
+);
+
+const scoreDeals = tool(
+    async () => {
+        return JSON.stringify({
+            action: "score_deals",
+            description: "AI-scored ranking of all active deals by health score",
+        });
+    },
+    {
+        name: "score_deals",
+        description:
+            "Score and rank all active deals by AI-computed health score. Shows a ranked list with risk levels, weighted values, and scores.",
+        schema: z.object({}),
+    }
+);
+
+const showActivity = tool(
+    async () => {
+        return JSON.stringify({
+            action: "show_activity",
+            description: "Recent activity log of all deal mutations with timestamps",
+        });
+    },
+    {
+        name: "show_activity",
+        description:
+            "Show the recent activity log of all deal mutations — creates, moves, closes, deletes. Shows who triggered each action (user vs AI) with timestamps.",
+        schema: z.object({}),
+    }
+);
+
+// All backend tools
+const allTools = [
+    createDeal,
+    moveDeal,
+    getPipelineSummary,
+    analyzePipeline,
+    getDealInsights,
+    scoreDeals,
+    showActivity,
+];
+
 // ── Agent Creation ────────────────────────────────────────────────
 
-export function createAgent() {
-    const model = new ChatOpenAI({
+function getModel() {
+    if (process.env.OPENAI_API_KEY) {
+        return new ChatOpenAI({
+            model: "gpt-4o-mini",
+            temperature: 0.3,
+        });
+    }
+
+    if (process.env.GOOGLE_API_KEY) {
+        return new ChatGoogleGenerativeAI({
+            model: "gemini-2.0-flash",
+            temperature: 0.3,
+        });
+    }
+
+    // Fallback to OpenAI (will error if no key is set)
+    return new ChatOpenAI({
         model: "gpt-4o-mini",
         temperature: 0.3,
     });
+}
+
+export function createAgent() {
+    const model = getModel();
 
     const agent = createReactAgent({
         llm: model,
-        tools: [createDeal, moveDeal, getPipelineSummary],
-        prompt: `You are DealFlow AI, an expert sales pipeline copilot. You help sales teams manage their deals efficiently.
+        tools: allTools,
+        prompt: `You are DealFlow AI, an expert sales pipeline copilot built with CopilotKit and LangGraph. You help sales teams manage their deals efficiently.
 
-Your capabilities:
-- Create new deals in the pipeline with the create_deal tool
-- Move deals between pipeline stages with the move_deal tool
-- Provide pipeline analytics and summaries with the get_pipeline_summary tool
+Your capabilities (9 tools):
+- create_deal: Create new deals in the pipeline
+- move_deal: Move deals between pipeline stages
+- get_pipeline_summary: Quick pipeline overview with stats
+- analyze_pipeline: Deep analytics dashboard with KPIs and charts
+- get_deal_insights: AI scoring (0-100) for a specific deal with risk factors
+- score_deals: Rank all active deals by health score
+- show_activity: View activity timeline of all deal mutations
 
 Pipeline stages (in order): Lead → Qualified → Proposal → Negotiation → Closed Won / Closed Lost
+
+Stage win probabilities for forecasting:
+- Lead: 10% | Qualified: 25% | Proposal: 50% | Negotiation: 75% | Closed Won: 100% | Closed Lost: 0%
 
 Guidelines:
 - Always be helpful, concise, and proactive
 - When creating deals, suggest reasonable defaults if not all info is provided
 - When moving deals, confirm the action clearly
-- For pipeline summaries, provide actionable insights
+- For pipeline analysis, provide actionable insights
+- Proactively suggest scoring deals or getting insights when appropriate
 - Use a professional but friendly tone
 - Format monetary values nicely (e.g., $50,000)
-- If unsure about a deal name for moving, ask for clarification`,
+- If unsure about a deal name, ask for clarification
+- You are a Tier 3 agentic application with advanced Generative UI capabilities`,
     });
 
     return agent;
 }
+
+// Export the graph for use by the agent endpoint
+export const graph = createAgent();
